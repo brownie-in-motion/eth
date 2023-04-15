@@ -218,7 +218,7 @@ const main = async () => {
               return pret;
             });
           } else {
-            log("async" + prop, argumentsList, ret);
+            log(prop, argumentsList, ret);
             return ret;
           }
         }
