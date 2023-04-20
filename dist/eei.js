@@ -20,7 +20,6 @@ class ViewOnlyEEI extends vmState_1.VmState {
         throw new Error('Method not implemented.');
     }
     storageStore(_address, _key, _value) {
-        console.log(_key, _value);
         throw new Error('Storage writes are not allowed in view mode.');
     }
     async storageLoad(address, key, _original) {
@@ -34,8 +33,7 @@ class ViewOnlyEEI extends vmState_1.VmState {
                 method: 'eth_getStorageAt',
                 params: [
                     address.toString(),
-                    // super jank. not sure how to do this
-                    BigInt('0x' + key.toString('hex')).toString(),
+                    key.toString('hex'),
                     'latest',
                 ],
                 id: 1,

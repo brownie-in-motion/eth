@@ -29,7 +29,6 @@ export class ViewOnlyEEI extends VmState implements EEIInterface {
         _key: Buffer,
         _value: Buffer
     ): Promise<void> {
-        console.log(_key, _value)
         throw new Error('Storage writes are not allowed in view mode.')
     }
 
@@ -48,8 +47,7 @@ export class ViewOnlyEEI extends VmState implements EEIInterface {
                 method: 'eth_getStorageAt',
                 params: [
                     address.toString(),
-                    // super jank. not sure how to do this
-                    BigInt('0x' + key.toString('hex')).toString(),
+                    key.toString('hex'),
                     'latest',
                 ],
                 id: 1,
