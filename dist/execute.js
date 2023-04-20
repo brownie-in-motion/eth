@@ -23,6 +23,7 @@ const contract = async (address) => {
     if (json.result.length < 1)
         throw new Error('No contracts found.');
     const first = json.result[0];
+    const name = first['ContractName'];
     // two possible formats
     // handle solidity standard json-input
     if (first['SourceCode'].startsWith('{')) {
@@ -33,41 +34,48 @@ const contract = async (address) => {
             runs: parseInt(parsed.settings?.optimizer?.runs.toString() ?? '0'),
             evm: parsed.evmVersion,
         });
-        return new Map(Object.entries(parsed.sources).map(([filename, { content }]) => [
-            filename.split('/').at(-1).split('.')[0],
-            {
-                code: content,
-                filename: filename,
-                version: first['CompilerVersion'],
-                settings: settings(parsed),
-            },
-        ]));
+        return {
+            name,
+            contracts: new Map(Object.entries(parsed.sources).map(([filename, { content }]) => [
+                filename.split('/').at(-1),
+                {
+                    code: content,
+                    filename: filename,
+                    version: first['CompilerVersion'],
+                    settings: settings(parsed),
+                },
+            ])),
+        };
     }
-    return new Map(json.result.map((item) => [
-        item['ContractName'],
-        {
-            code: item['Implementation'] || item['SourceCode'],
-            version: item['CompilerVersion'],
-            settings: {
-                optimization: Boolean(parseInt(item['OptimizationUsed'])),
-                runs: parseInt(item['Runs']),
-                evm: item['EVMVersion'],
+    return {
+        name,
+        contracts: new Map(json.result.map((item) => [
+            `${item['ContractName']}.sol`,
+            {
+                code: item['Implementation'] || item['SourceCode'],
+                version: item['CompilerVersion'],
+                settings: {
+                    optimization: Boolean(parseInt(item['OptimizationUsed'])),
+                    runs: parseInt(item['Runs']),
+                    evm: item['EVMVersion'],
+                },
             },
-        },
-    ]));
+        ])),
+    };
 };
 exports.contract = contract;
-const execute = async (address, name, patch, nested) => {
-    const data = await (0, exports.contract)(address);
-    if (!data.has(name))
-        throw new Error(`No contract named ${name}.`);
-    const { code, filename, version, settings } = data.get(name);
+const execute = async (address, file, patch, nested) => {
+    const { name, contracts: data } = await (0, exports.contract)(address);
+    if (!data.has(file))
+        throw new Error(`No contract named ${file}.`);
+    const { code } = data.get(file);
+    const { filename, version, settings } = data.get(`${name}.sol`);
     const { code: patched, name: func } = (0, inject_1.inject)(code, patch, nested ?? name);
-    data.set(name, { ...data.get(name), code: patched });
+    data.set(file, { ...data.get(file), code: patched });
     const options = {
         language: 'Solidity',
         sources: Object.fromEntries([...data.entries()].map(([name, { code, filename }]) => [
-            filename ?? `${name}.sol`,
+            filename ?? name,
             { content: code },
         ])),
         settings: {

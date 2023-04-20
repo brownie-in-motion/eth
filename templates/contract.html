@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/style.css">
+        <title>Contract: {{name}}</title>
+    </head>
+    <body>
+        <main>
+            <h1>Contract: {{name}}</h1>
+            <p>Address: {{address}}</p>
+
+            <h2>Run function</h2>
+            <form>
+                <div>
+                    <label for="file">File</label>
+                    <select name="file" id="file">
+                        {{#each contracts}}
+                            <option
+                                value="{{file}}"
+                                {{#if @first}}selected{{/if}}
+                            >
+                                {{file}}
+                            </option>
+                        {{/each}}
+                    </select>
+                    <label for="contract">Contract</label>
+                    <input
+                        type="text"
+                        name="contract"
+                        id="contract"
+                        value="{{name}}"
+                    >
+                    <input type="hidden" name="address" value="{{address}}">
+                </div>
+                <textarea name="code" id="code" cols="30" rows="10"></textarea>
+                <div>
+                    <button type="submit">Run</button>
+                    <pre class="output"></pre>
+                </div>
+            </form>
+
+            <script src="/script.js"></script>
+
+            <h2>Sources</h2>
+            {{#each contracts}}
+                {{#with this}}
+                    <h3>{{file}}</h3>
+                    <div class="code">
+                        <pre>{{code}}</pre>
+                    </div>
+                {{/with}}
+            {{/each}}
+        </main>
+    </body>
+</html>

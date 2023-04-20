@@ -36,9 +36,12 @@ export type SolidityOptions = {
     evmVersion: string
 }
 
-export const contract = async (
-    address: string
-): Promise<Map<string, Contract>> => {
+export type ContractInfo = {
+    name: string
+    contracts: Map<string, Contract>
+}
+
+export const contract = async (address: string): Promise<ContractInfo> => {
     const url = new URL(ENDPOINT)
     url.searchParams.append('module', 'contract')
     url.searchParams.append('action', 'getsourcecode')
@@ -52,6 +55,7 @@ export const contract = async (
     if (json.result.length < 1) throw new Error('No contracts found.')
 
     const first = json.result[0]
+    const name = first['ContractName']
 
     // two possible formats
     // handle solidity standard json-input
@@ -65,54 +69,65 @@ export const contract = async (
             evm: parsed.evmVersion,
         })
 
-        return new Map(
-            Object.entries(parsed.sources).map(([filename, { content }]) => [
-                filename.split('/').at(-1)!.split('.')[0],
-                {
-                    code: content!,
-                    filename: filename,
-                    version: first['CompilerVersion'],
-                    settings: settings(parsed),
-                },
-            ])
-        )
+        return {
+            name,
+            contracts: new Map(
+                Object.entries(parsed.sources).map(
+                    ([filename, { content }]) => [
+                        filename.split('/').at(-1)!,
+                        {
+                            code: content!,
+                            filename: filename,
+                            version: first['CompilerVersion'],
+                            settings: settings(parsed),
+                        },
+                    ]
+                )
+            ),
+        }
     }
 
-    return new Map(
-        json.result.map((item: any) => [
-            item['ContractName'],
-            {
-                code: item['Implementation'] || item['SourceCode'],
-                version: item['CompilerVersion'],
-                settings: {
-                    optimization: Boolean(parseInt(item['OptimizationUsed'])),
-                    runs: parseInt(item['Runs']),
-                    evm: item['EVMVersion'],
+    return {
+        name,
+        contracts: new Map(
+            json.result.map((item: any) => [
+                `${item['ContractName']}.sol`,
+                {
+                    code: item['Implementation'] || item['SourceCode'],
+                    version: item['CompilerVersion'],
+                    settings: {
+                        optimization: Boolean(
+                            parseInt(item['OptimizationUsed'])
+                        ),
+                        runs: parseInt(item['Runs']),
+                        evm: item['EVMVersion'],
+                    },
                 },
-            },
-        ])
-    )
+            ])
+        ),
+    }
 }
 
 export const execute = async (
     address: string,
-    name: string,
+    file: string,
     patch: string,
-    nested?: string,
+    nested?: string
 ): Promise<Buffer> => {
-    const data = await contract(address)
-    if (!data.has(name)) throw new Error(`No contract named ${name}.`)
+    const { name, contracts: data } = await contract(address)
+    if (!data.has(file)) throw new Error(`No contract named ${file}.`)
 
-    const { code, filename, version, settings } = data.get(name)!
+    const { code } = data.get(file)!
+    const { filename, version, settings } = data.get(`${name}.sol`)!
     const { code: patched, name: func } = inject(code, patch, nested ?? name)
 
-    data.set(name, { ...data.get(name)!, code: patched })
+    data.set(file, { ...data.get(file)!, code: patched })
 
     const options = {
         language: 'Solidity',
         sources: Object.fromEntries(
             [...data.entries()].map(([name, { code, filename }]) => [
-                filename ?? `${name}.sol`,
+                filename ?? name,
                 { content: code },
             ])
         ),
