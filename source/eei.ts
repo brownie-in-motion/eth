@@ -29,6 +29,7 @@ export class ViewOnlyEEI extends VmState implements EEIInterface {
         _key: Buffer,
         _value: Buffer
     ): Promise<void> {
+        console.log(_key, _value)
         throw new Error('Storage writes are not allowed in view mode.')
     }
 

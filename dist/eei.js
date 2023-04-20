@@ -20,6 +20,7 @@ class ViewOnlyEEI extends vmState_1.VmState {
         throw new Error('Method not implemented.');
     }
     storageStore(_address, _key, _value) {
+        console.log(_key, _value);
         throw new Error('Storage writes are not allowed in view mode.');
     }
     async storageLoad(address, key, _original) {

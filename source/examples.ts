@@ -69,4 +69,5 @@ const injectExample = async () => {
     console.log(name)
 }
 
-injectExample()
+void eeiExample;
+void injectExample;

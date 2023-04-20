@@ -6,7 +6,8 @@
     "@ethereumjs/vm": "^6.4.1",
     "@ethersproject/abi": "^5.7.0",
     "@solidity-parser/parser": "^0.16.0",
-    "solc": "0.5"
+    "sha3": "^2.1.4",
+    "solc": "^0.8.19"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
