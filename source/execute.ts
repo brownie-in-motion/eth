@@ -73,7 +73,7 @@ queue.onDrop(cache.delete.bind(cache))
 // we can eat that though
 export const contract = async (address: string): Promise<ContractInfo> => {
     const normalized = Address.fromString(address).toString()
-    if (cache.has(normalized)) return cache.get(normalized)!
+    if (cache.has(normalized)) return structuredClone(cache.get(normalized)!)
     const result = await inner(normalized)
     cache.set(normalized, result)
     queue.push(normalized)
