@@ -1,3 +1,5 @@
+hljs.highlightAll()
+
 document.querySelector('textarea').textContent = [
     '(uint256) {',
     '    return 1;',

@@ -16,22 +16,46 @@ const templates = new Map();
 });
 const app = (0, express_1.default)();
 app.use(express_1.default.static('public', { extensions: ['html'] }));
+app.use(express_1.default.static('node_modules/highlight.js/lib'));
 app.use(express_1.default.json());
 app.get('/address/:address', async (req, res) => {
     const address = req.params.address;
-    const { name, contracts } = await (0, execute_1.contract)(address);
-    res.send(templates.get('contract')({
-        address,
-        name,
-        contracts: [...contracts.entries()].map(([file, { code }]) => ({
+    try {
+        const { name, contracts } = await (0, execute_1.contract)(address);
+        const data = [...contracts.entries()].map(([file, { code }]) => ({
             file,
             code,
-        })),
-    }));
+        }));
+        res.send(templates.get('contract')({
+            address,
+            name,
+            contracts: data,
+        }));
+    }
+    catch {
+        res.redirect('/');
+    }
+});
+app.get('/exists', async (req, res) => {
+    const { address } = req.query;
+    if (!address)
+        return res.status(400).send('No address provided.');
+    try {
+        await (0, execute_1.contract)((address ?? '').toString());
+    }
+    catch (e) {
+        return res.status(400).send('Contract not found.');
+    }
+    res.send('Contract exists!');
 });
 app.post('/run', async (req, res) => {
     const { address, file, patch, contract: nested } = req.body;
-    const result = await (0, execute_1.execute)(address, file, patch, nested);
-    res.send(result.toString('hex'));
+    try {
+        const result = await (0, execute_1.execute)(address, file, patch, nested);
+        res.send(result.toString('hex'));
+    }
+    catch (e) {
+        res.status(500).send(e.message ?? 'There was an error.');
+    }
 });
 app.listen(3000);

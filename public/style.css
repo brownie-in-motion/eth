@@ -1,5 +1,8 @@
+html { height: 100% }
+
 head, body {
     margin: 0;
+    height: 100%;
 }
 
 body {
@@ -13,6 +16,11 @@ main {
     height: 100%;
     padding: 1rem;
     box-sizing: border-box;
+}
+
+main.center {
+    display: grid;
+    place-items: center;
 }
 
 h1 {
@@ -33,5 +41,23 @@ textarea {
 
 .code {
     overflow: auto;
-    height: 20lh;
+    max-height: 20lh;
+}
+
+.output {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    width: 100%;
+}
+
+form.large * {
+    font-size: 1.5rem;
+}
+
+form.large input[type="text"] {
+    width: 50ch;
+}
+
+.code pre {
+    margin: 0;
 }

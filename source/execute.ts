@@ -8,6 +8,8 @@ import { Keccak } from 'sha3'
 
 const TOKEN = process.env.TOKEN!
 const ENDPOINT = 'https://api.etherscan.io/api'
+const RPC = 'https://cloudflare-eth.com'
+const CACHE = 100
 
 export type Contract = {
     code: string
@@ -16,7 +18,7 @@ export type Contract = {
     settings: {
         optimization: boolean
         runs: number
-        evm: string
+        evm?: string
     }
 }
 
@@ -41,7 +43,44 @@ export type ContractInfo = {
     contracts: Map<string, Contract>
 }
 
+class Ring<T> {
+    data: T[] = []
+    index: number = -1
+    drop?: (data: T) => void
+
+    constructor(public size: number) {
+        this.data = new Array(size)
+    }
+
+    onDrop(callback: (data: T) => void) {
+        this.drop = callback
+    }
+
+    push(data: T) {
+        this.index = (this.index + 1) % this.size
+        if (this.data[this.index] !== undefined) {
+            this.drop?.(this.data[this.index])
+        }
+        this.data[this.index] = data
+    }
+}
+
+const cache = new Map<string, ContractInfo>()
+const queue = new Ring<string>(CACHE)
+queue.onDrop(cache.delete.bind(cache))
+
+// does not optimize concurrent requests
+// we can eat that though
 export const contract = async (address: string): Promise<ContractInfo> => {
+    const normalized = Address.fromString(address).toString()
+    if (cache.has(normalized)) return cache.get(normalized)!
+    const result = await inner(normalized)
+    cache.set(normalized, result)
+    queue.push(normalized)
+    return structuredClone(result)
+}
+
+const inner = async (address: string): Promise<ContractInfo> => {
     const url = new URL(ENDPOINT)
     url.searchParams.append('module', 'contract')
     url.searchParams.append('action', 'getsourcecode')
@@ -123,6 +162,8 @@ export const execute = async (
 
     data.set(file, { ...data.get(file)!, code: patched })
 
+    if (settings?.evm?.toLowerCase() === 'default') settings.evm = undefined
+
     const options = {
         language: 'Solidity',
         sources: Object.fromEntries(
@@ -153,13 +194,18 @@ export const execute = async (
 
     const output = JSON.parse(solc.compile(JSON.stringify(options)))
 
-    if (output.contracts === undefined) throw new Error('Compilation error.')
+    if (output.contracts === undefined) {
+        const error = output.errors?.filter(
+            (error: any) => error.severity === 'error'
+        )?.[0]
+        throw new Error(`Compilation error: ${error.message ?? 'unknown.'}`)
+    }
 
     const parsed = output.contracts[filename ?? `${name}.sol`][name]
     const bytecode = parsed.evm.deployedBytecode.object
 
     const common = new Common({ chain: 'mainnet' })
-    const eei = new ViewOnlyEEI(common, 'https://eth.llamarpc.com')
+    const eei = new ViewOnlyEEI(common, RPC)
     const evm = new EVM({ common, eei })
     const bytes = Buffer.from(bytecode, 'hex')
 
